@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Бумажных Миниатюр</title>
+    <!-- Подключаем Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключаем jsPDF для генерации PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Стиль для инпута файла */
+        input[type="file"]::file-selector-button {
+            @apply bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors;
+        }
+        canvas {
+            image-rendering: pixelated; /* Для четких границ при масштабировании */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8">Генератор Бумажных Миниатюр</h1>
+
+        <div class="md:flex md:space-x-8">
+
+            <!-- ========= ПАНЕЛЬ УПРАВЛЕНИЯ (ЛЕВАЯ) ========= -->
+            <div class="md:w-1/3 bg-gray-800 p-6 rounded-lg shadow-lg mb-6 md:mb-0 h-fit">
+                <h2 class="text-2xl font-semibold mb-6">Настройки</h2>
+                
+                <!-- Загрузка файла -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2" for="fileInput">Загрузить изображение (PNG)</label>
+                    <input class="w-full text-sm text-gray-400 border border-gray-600 rounded-lg cursor-pointer bg-gray-700 focus:outline-none" id="fileInput" type="file" accept="image/png" multiple>
+                </div>
+                
+                <!-- Навигация по изображениям -->
+                <div class="mb-4" id="imageNav" style="display: none;">
+                    <label class="block text-sm font-medium mb-2">Выбранное изображение</label>
+                    <div class="flex items-center justify-between">
+                        <button id="prevImageBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50" disabled>&lt; Назад</button>
+                        <span id="imageCountLabel" class="text-sm">0 / 0</span>
+                        <button id="nextImageBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50" disabled>Вперед &gt;</button>
+                    </div>
+                </div>
+
+                <!-- Размер миниатюры -->
+                <div class="mb-4">
+                    <label for="miniSize" class="block text-sm font-medium mb-2">Размер миниатюры (база)</label>
+                    <select id="miniSize" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="medium">Medium / Средний (25mm)</option>
+                        <option value="large">Large / Большой (50mm)</option>
+                        <option value="huge">Huge / Огромный (75mm)</option>
+                        <option value="gargantuan">Gargantuan / Гигантский (100mm)</option>
+                    </select>
+                </div>
+
+                <!-- Цвет обводки -->
+                <div class="mb-4">
+                    <label for="borderColor" class="block text-sm font-medium mb-2">Цвет обводки</label>
+                    <input type="color" id="borderColor" value="#000000" class="w-full h-10 p-1 bg-gray-700 border border-gray-600 rounded-lg cursor-pointer">
+                </div>
+                
+                <!-- Толщина обводки -->
+                <div class="mb-6">
+                    <label for="borderWidth" class="block text-sm font-medium mb-2">Толщина обводки (мм): <span id="borderWidthLabel">0.5</span></label>
+                    <input id="borderWidth" type="range" min="0" max="3" value="0.5" step="0.1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Смещение Переда -->
+                <div class="mb-4">
+                    <label for="frontOffsetY" class="block text-sm font-medium mb-2">Смещение переда (мм): <span id="frontOffsetYLabel">0</span></label>
+                    <input id="frontOffsetY" type="range" min="-20" max="20" value="0" step="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Смещение Спины -->
+                <div class="mb-6">
+                    <label for="backOffsetY" class="block text-sm font-medium mb-2">Смещение спины (мм): <span id="backOffsetYLabel">0</span></label>
+                    <input id="backOffsetY" type="range" min="-20" max="20" value="0" step="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Кнопки действий -->
+                <div class="flex flex-col space-y-3">
+                    <button id="addBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Добавить на лист
+                    </button>
+                    <button id="clearBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Очистить лист
+                    </button>
+                    <button id="downloadBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Скачать PDF (A4)
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========= ОБЛАСТЬ ПРОСМОТРА (ПРАВАЯ) ========= -->
+            <div class="md:w-2/3">
+                <!-- Предпросмотр одной миниатюры -->
+                <h2 class="text-2xl font-semibold mb-4">Предпросмотр</h2>
+                <div class="bg-white p-4 rounded-lg shadow-inner mb-8 flex justify-center items-center overflow-auto">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+                
+                <!-- Лист для PDF -->
+                <h2 class="text-2xl font-semibold mb-4">Лист для PDF (A4)</h2>
+                <div class="bg-white rounded-lg shadow-inner overflow-auto" style="max-height: 70vh;">
+                    <!-- A4 соотношение сторон (210x297) -->
+                    <canvas id="sheetCanvas" class="max-w-full h-auto"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+            // Константы
+            const DPI = 96; // 96 DPI для хорошего соответствия пикселей и мм
+            const MM_PER_INCH = 25.4;
+            const PX_PER_MM = DPI / MM_PER_INCH; // Пикселей в миллиметре (~3.78)
+            
+            const SIZES = {
+                medium: 25,
+                large: 50,
+                huge: 75,
+                gargantuan: 100
+            };
+            
+            const A4_WIDTH_MM = 210;
+            const A4_HEIGHT_MM = 297;
+            const A4_WIDTH_PX = A4_WIDTH_MM * PX_PER_MM;
+            const A4_HEIGHT_PX = A4_HEIGHT_MM * PX_PER_MM;
+
+            // Получаем элементы DOM
+            const fileInput = document.getElementById('fileInput');
+            const miniSize = document.getElementById('miniSize');
+            const borderColor = document.getElementById('borderColor');
+            const borderWidth = document.getElementById('borderWidth');
+            const borderWidthLabel = document.getElementById('borderWidthLabel');
+            const frontOffsetY = document.getElementById('frontOffsetY');
+            const frontOffsetYLabel = document.getElementById('frontOffsetYLabel');
+            const backOffsetY = document.getElementById('backOffsetY');
+            const backOffsetYLabel = document.getElementById('backOffsetYLabel');
+
+            const addBtn = document.getElementById('addBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            const previewCanvas = document.getElementById('previewCanvas');
+            const previewCtx = previewCanvas.getContext('2d');
+            
+            const sheetCanvas = document.getElementById('sheetCanvas');
+            const sheetCtx = sheetCanvas.getContext('2d');
+
+            // Навигация по картинкам
+            const imageNav = document.getElementById('imageNav');
+            const prevImageBtn = document.getElementById('prevImageBtn');
+            const nextImageBtn = document.getElementById('nextImageBtn');
+            const imageCountLabel = document.getElementById('imageCountLabel');
+
+            // Хранилище для загруженного изображения
+            let loadedImages = [];
+            let currentImageIndex = 0;
+            // Позиции для добавления на лист
+            let sheetNextX = 0;
+            let sheetNextY = 0;
+            let sheetRowHeight = 0;
+
+            // Инициализация холста для листа
+            sheetCanvas.width = A4_WIDTH_PX;
+            sheetCanvas.height = A4_HEIGHT_PX;
+            
+            function initializeSheet() {
+                sheetCtx.fillStyle = 'white';
+                sheetCtx.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+                sheetNextX = 0;
+                sheetNextY = 0;
+                sheetRowHeight = 0;
+            }
+            initializeSheet(); // Очищаем при загрузке
+
+            // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+
+            fileInput.addEventListener('change', handleImageUpload);
+            miniSize.addEventListener('change', drawPreview);
+            borderColor.addEventListener('input', drawPreview);
+            borderWidth.addEventListener('input', () => {
+                borderWidthLabel.textContent = borderWidth.value;
+                drawPreview();
+            });
+            frontOffsetY.addEventListener('input', () => {
+                frontOffsetYLabel.textContent = frontOffsetY.value;
+                drawPreview();
+            });
+            backOffsetY.addEventListener('input', () => {
+                backOffsetYLabel.textContent = backOffsetY.value;
+                drawPreview();
+            });
+
+            addBtn.addEventListener('click', addToSheet);
+            clearBtn.addEventListener('click', initializeSheet);
+            downloadBtn.addEventListener('click', downloadPDF);
+
+            prevImageBtn.addEventListener('click', () => {
+                if (currentImageIndex > 0) {
+                    currentImageIndex--;
+                    updateImageNav();
+                    drawPreview();
+                }
+            });
+            
+            nextImageBtn.addEventListener('click', () => {
+                if (currentImageIndex < loadedImages.length - 1) {
+                    currentImageIndex++;
+                    updateImageNav();
+                    drawPreview();
+                }
+            });
+
+            // --- ОСНОВНЫЕ ФУНКЦИИ ---
+
+            /**
+             * Загружает изображение из инпута и сохраняет его
+             */
+            function handleImageUpload(event) {
+                const files = event.target.files;
+                if (!files || files.length === 0) return;
+                
+                loadedImages = []; // Очищаем старый список
+                currentImageIndex = 0;
+                let filesLoaded = 0;
+                
+                // Показываем навигацию
+                imageNav.style.display = files.length > 1 ? 'block' : 'none';
+
+                for (let i = 0; i < files.length; i++) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            filesLoaded++;
+                            // Рисуем превью, как только загрузится первое изображение
+                            if (filesLoaded === 1) {
+                                drawPreview();
+                            }
+                            // Обновляем счетчик, когда все загружено
+                            if (filesLoaded === files.length) {
+                                updateImageNav();
+                            }
+                        };
+                        img.src = e.target.result;
+                        loadedImages[i] = img; // Сохраняем в массив
+                    };
+                    reader.readAsDataURL(files[i]);
+                }
+                updateImageNav(); // Обновить счетчик сразу
+            }
+
+            /**
+             * Обновляет состояние кнопок навигации
+             */
+            function updateImageNav() {
+                if (loadedImages.length > 0) {
+                    imageCountLabel.textContent = `${currentImageIndex + 1} / ${loadedImages.length}`;
+                } else {
+                    imageCountLabel.textContent = `0 / 0`;
+                }
+                prevImageBtn.disabled = currentImageIndex === 0;
+                nextImageBtn.disabled = currentImageIndex >= loadedImages.length - 1;
+            }
+
+            /**
+             * Рисует предпросмотр одной миниатюры
+             */
+            function drawPreview() {
+                const currentImg = loadedImages[currentImageIndex];
+
+                if (loadedImages.length === 0 || !currentImg) {
+                    // Если изображения нет, рисуем заглушку
+                    previewCanvas.width = 200;
+                    previewCanvas.height = 150;
+                    previewCtx.fillStyle = '#f0f0f0';
+                    previewCtx.fillRect(0, 0, 200, 150);
+                    previewCtx.fillStyle = '#999';
+                    previewCtx.textAlign = 'center';
+                    previewCtx.fillText('Загрузите PNG', 100, 75);
+                    return;
+                }
+
+                // 1. Получаем текущие настройки
+                const sizeMM = SIZES[miniSize.value];
+                const borderMM = parseFloat(borderWidth.value);
+                const color = borderColor.value;
+                const frontOffsetMM = parseFloat(frontOffsetY.value);
+                const backOffsetMM = parseFloat(backOffsetY.value);
+                
+                // 2. Рассчитываем размеры в пикселях
+                const borderPx = borderMM * PX_PER_MM;
+                const basePx = sizeMM * PX_PER_MM;
+                const frontOffsetPx = frontOffsetMM * PX_PER_MM;
+                const backOffsetPx = backOffsetMM * PX_PER_MM;
+                
+                // Рассчитываем высоту, сохраняя пропорции
+                const imgAspectRatio = currentImg.height / currentImg.width;
+                const imgHeightPx = basePx * imgAspectRatio;
+
+                // 3. Устанавливаем размеры холста (две высоты + обводка)
+                const totalWidth = basePx + (borderPx * 2);
+                const totalHeight = (imgHeightPx * 2) + (borderPx * 2);
+
+                previewCanvas.width = totalWidth;
+                previewCanvas.height = totalHeight;
+
+                // 4. Очищаем холст
+                previewCtx.fillStyle = 'white';
+                previewCtx.fillRect(0, 0, totalWidth, totalHeight);
+
+                // 5. Рисуем обводку
+                if (borderPx > 0) {
+                    previewCtx.strokeStyle = color;
+                    previewCtx.lineWidth = borderPx;
+                    
+                    // Внешняя рамка
+                    previewCtx.strokeRect(borderPx / 2, borderPx / 2, totalWidth - borderPx, totalHeight - borderPx);
+                    
+                    // Центральная линия сгиба
+                    previewCtx.beginPath();
+                    previewCtx.moveTo(borderPx, totalHeight / 2);
+                    previewCtx.lineTo(totalWidth - borderPx, totalHeight / 2);
+                    previewCtx.stroke();
+                } else {
+                    // 5.5. Рисуем ТОНКУЮ центральную линию сгиба (если нет обводки)
+                    previewCtx.strokeStyle = '#AAAAAA'; // Светло-серый
+                    previewCtx.lineWidth = 1; // 1 пиксель
+                    previewCtx.beginPath();
+                    previewCtx.moveTo(0, totalHeight / 2);
+                    previewCtx.lineTo(totalWidth, totalHeight / 2);
+                    previewCtx.stroke();
+                }
+
+                // 6. Рисуем нижнюю часть (ПЕРЕД)
+                previewCtx.drawImage(
+                    currentImg, 
+                    borderPx,            // x
+                    totalHeight / 2 + frontOffsetPx,     // y (в середине + смещение)
+                    basePx,              // width
+                    imgHeightPx          // height
+                );
+                
+                // 7. Рисуем верхнюю часть (ЗАД - зеркально и вверх ногами)
+                previewCtx.save();
+                // Перемещаем начало координат в правый верхний угол области
+                previewCtx.translate(totalWidth - borderPx, totalHeight / 2);
+                // Отражаем по X (-1) и Y (-1)
+                previewCtx.scale(-1, -1);
+                // Рисуем изображение из новой (0,0)
+                previewCtx.drawImage(
+                    currentImg,
+                    0, 
+                    -backOffsetPx, // y (смещение)
+                    basePx, imgHeightPx
+                );
+                previewCtx.restore();
+            }
+
+            /**
+             * Добавляет текущую миниатюру из превью на лист
+             */
+            function addToSheet() {
+                if (loadedImages.length === 0 || !loadedImages[currentImageIndex]) {
+                    console.warn("Нет изображения для добавления");
+                    return;
+                }
+                
+                // Получаем текущее изображение из превью
+                const miniWidth = previewCanvas.width;
+                const miniHeight = previewCanvas.height;
+
+                // Проверяем, поместится ли в текущей строке
+                if (sheetNextX + miniWidth > sheetCanvas.width) {
+                    // Не помещается, переходим на новую строку
+                    sheetNextX = 0;
+                    sheetNextY += sheetRowHeight;
+                    sheetRowHeight = 0;
+                }
+                
+                // Проверяем, поместится ли на листе вообще
+                if (sheetNextY + miniHeight > sheetCanvas.height) {
+                    console.error("Лист заполнен!");
+                    // Тут можно было бы показать сообщение пользователю
+                    return;
+                }
+
+                // Рисуем
+                sheetCtx.drawImage(previewCanvas, sheetNextX, sheetNextY);
+
+                // Обновляем позицию для следующей миниатюры
+                sheetNextX += miniWidth;
+                
+                // Обновляем максимальную высоту в текущей строке
+                if (miniHeight > sheetRowHeight) {
+                    sheetRowHeight = miniHeight;
+                }
+            }
+
+            /**
+             * Генерирует и скачивает PDF
+             */
+            function downloadPDF() {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    
+                    // Создаем PDF в A4, единица измерения - миллиметры
+                    const doc = new jsPDF({
+                        unit: 'mm',
+                        format: 'a4',
+                        orientation: 'portrait'
+                    });
+
+                    // Получаем данные холста
+                    const imgData = sheetCanvas.toDataURL('image/png');
+
+                    // Добавляем изображение на весь лист
+                    doc.addImage(imgData, 'PNG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
+                    
+                    // Сохраняем файл
+                    doc.save('paper_minis.pdf');
+
+                } catch (e) {
+                    console.error("Ошибка при создании PDF:", e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
