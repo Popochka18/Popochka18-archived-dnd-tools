@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор NPC D&D 5e</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <div class="controls">
+        <h2>Параметры Генерации</h2>
+        
+        <label for="race-select">Раса:</label>
+        <select id="race-select">
+            <option value="any">Любая</option>
+            <option value="human">Человек</option>
+            <option value="elf">Эльф</option>
+            <option value="dwarf">Дварф</option>
+            <option value="orc">Орк</option>
+            <option value="goblin">Гоблин</option>
+        </select>
+
+        <label for="class-select">Класс/Тип:</label>
+        <select id="class-select">
+            <option value="any">Любой</option>
+            <option value="commoner">Простолюдин</option>
+            <option value="guard">Стражник</option>
+            <option value="mage">Маг</option>
+            <option value="thug">Бандит</option>
+        </select>
+
+        <label for="cr-select">Уровень Опасности (CR):</label>
+        <select id="cr-select">
+            <option value="0">0 (0-10 XP)</option>
+            <option value="1/8">1/8 (25 XP)</option>
+            <option value="1/4 (50 XP)">1/4 (50 XP)</option>
+            <option value="1/2 (100 XP)">1/2 (100 XP)</option>
+            <option value="1 (200 XP)">1 (200 XP)</option>
+        </select>
+        
+        <button id="generate-btn">Создать NPC</button>
+        
+        <hr>
+        
+        <label for="portrait-upload">Загрузить портрет:</label>
+        <input type="file" id="portrait-upload" accept="image/*">
+
+        <button id="save-png-btn" class="save-button">Сохранить карточку (PNG)</button>
+    </div>
+
+    <div class="npc-card" id="npc-card">
+        
+        <div class="card-header">
+            <h1 id="npc-name">Имя NPC</h1>
+            <p id="npc-meta">Раса, Класс</p>
+        </div>
+
+        <div class="portrait-container">
+            <img id="portrait-img" src="" alt="Портрет NPC" style="display:none;">
+            <div id="portrait-placeholder">Место для портрета</div>
+        </div>
+        
+        <div class="stat-block-container">
+            <div class="stat-block">
+                <div>СИЛ</div>
+                <div id="stat-str">10 (+0)</div>
+            </div>
+            <div class="stat-block">
+                <div>ЛОВ</div>
+                <div id="stat-dex">10 (+0)</div>
+            </div>
+            <div class="stat-block">
+                <div>ТЕЛ</div>
+                <div id="stat-con">10 (+0)</div>
+            </div>
+            <div class="stat-block">
+                <div>ИНТ</div>
+                <div id="stat-int">10 (+0)</div>
+            </div>
+            <div class="stat-block">
+                <div>МДР</div>
+                <div id="stat-wis">10 (+0)</div>
+            </div>
+            <div class="stat-block">
+                <div>ХАР</div>
+                <div id="stat-cha">10 (+0)</div>
+            </div>
+        </div>
+
+        <div class="combat-stats">
+            <div><strong>Класс Доспеха (AC):</strong> <span id="npc-ac">10</span></div>
+            <div><strong>Хиты (HP):</strong> <span id="npc-hp">10 (3d6)</span></div>
+            <div><strong>Скорость:</strong> <span id="npc-speed">30 фт.</span></div>
+        </div>
+
+        <div class="details-section">
+            <p><strong>Навыки:</strong> <span id="npc-skills"></span></p>
+            <p><strong>Чувства:</strong> <span id="npc-senses">Пассивная Внимательность 10</span></p>
+            <p><strong>Языки:</strong> <span id="npc-languages">Общий</span></p>
+            <p><strong>Уровень Опасности (CR):</strong> <span id="npc-cr">0 (10 XP)</span></p>
+        </div>
+
+        <div class="actions-section">
+            <div class="section-title">Действия</div>
+            <div id="npc-actions">
+                <p><strong>Действие.</strong> Описание действия.</p>
+            </div>
+        </div>
+
+        <div class="description-section">
+            <div class="section-title">Описание</div>
+            <p id="npc-description">Краткое описание внешности и характера.</p>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
